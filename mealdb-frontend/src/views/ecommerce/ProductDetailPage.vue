@@ -25,7 +25,7 @@
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div class="flex justify-center items-center p-4 bg-gray-50 rounded-lg">
-          <img :src="getIngredientImageUrl(product.name)" :alt="product.name"
+          <img :src="product.imageUrl" :alt="product.name"
                class="max-w-full h-auto object-contain max-h-80 rounded-lg shadow-sm">
         </div>
         <div>
@@ -42,10 +42,12 @@
             </span>
           </p>
 
+          <!-- Informasi Penjual -->
           <p class="text-gray-600 text-base mb-6">
             Dijual oleh: <span class="font-semibold text-purple-700">{{ product.sellerName }}</span>
           </p>
 
+          <!-- Pemilih Kuantitas -->
           <div class="flex items-center mb-6">
             <label for="quantity" class="text-gray-700 mr-3 font-semibold">Kuantitas:</label>
             <input type="number" id="quantity" v-model.number="quantity"
@@ -62,6 +64,7 @@
         </div>
       </div>
 
+      <!-- Deskripsi Produk Lengkap -->
       <div class="mt-10 pt-8 border-t border-gray-200">
         <h2 class="text-2xl font-bold text-gray-900 mb-4">Tentang Produk Ini</h2>
         <p class="text-gray-700 leading-relaxed whitespace-pre-wrap">{{ product.descriptionFull }}</p>
@@ -74,114 +77,40 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { useCartStore } from '@/stores/cart'; // Import cart store
+import { useCartStore } from '@/stores/cart';
+import { useProductStore, Product } from '@/stores/product'; // Import product store dan Product interface
 
 const props = defineProps<{
-  id: string;
+  id: string; // ID produk dari URL
 }>();
 
 const router = useRouter();
-const cartStore = useCartStore(); // Inisialisasi cart store
+const cartStore = useCartStore();
+const productStore = useProductStore(); // Inisialisasi product store
 
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  descriptionFull: string;
-  price: number;
-  stock: number;
-  sellerName: string;
-  imageUrl: string; // Tambahkan imageUrl
-}
-
+// State reaktif
 const product = ref<Product | null>(null);
 const loading = ref(true);
 const error = ref<Error | null>(null);
 const quantity = ref(1);
 
-const getIngredientImageUrl = (ingredientName: string): string => {
-  const formattedName = ingredientName.replace(/ /g, '%20'); 
-  return `https://www.themealdb.com/images/ingredients/${formattedName}.png`;
-};
+// Fungsi getIngredientImageUrl tidak lagi dibutuhkan di sini
+// const getIngredientImageUrl = (ingredientName: string): string => {
+//   const formattedName = ingredientName.replace(/ /g, '%20'); 
+//   return `https://www.themealdb.com/images/ingredients/${formattedName}.png`;
+// };
 
-const allDummyProducts: Product[] = [
-  { 
-    id: 'p1', 
-    name: 'Chicken', 
-    description: 'Daging ayam segar, siap diolah jadi berbagai masakan.', 
-    descriptionFull: 'Daging ayam fillet tanpa tulang dan kulit, dipotong sempurna untuk kebutuhan masak Anda. Diperoleh dari peternakan terpercaya, bebas hormon, dan dijamin kesegarannya. Cocok untuk aneka resep ayam panggang, tumisan, sup, atau sebagai bahan dasar MPASI.',
-    price: 45000, 
-    stock: 30, 
-    sellerName: 'Toko Segar Jaya',
-    imageUrl: getIngredientImageUrl('Chicken') // Tambahkan imageUrl
-  },
-  { 
-    id: 'p2', 
-    name: 'Eggs', 
-    description: 'Telur ayam negeri berkualitas.', 
-    descriptionFull: 'Telur ayam negeri pilihan dengan ukuran sedang, kaya protein dan gizi. Cocok untuk digoreng, direbus, bahan kue, atau segala jenis masakan. Disimpan di suhu yang tepat untuk menjaga kesegarannya.',
-    price: 25000, 
-    stock: 100, 
-    sellerName: 'Agro Makmur',
-    imageUrl: getIngredientImageUrl('Eggs') // Tambahkan imageUrl
-  },
-  { 
-    id: 'p3', 
-    name: 'Onion', 
-    description: 'Bawang bombay besar, cocok untuk tumisan dan sup.', 
-    descriptionFull: 'Bawang bombay ukuran besar, memiliki aroma kuat dan rasa manis setelah dimasak. Ideal untuk base tumisan, sup, kari, atau caramelisasi. Dikirim dalam kondisi bersih dan kering.',
-    price: 10000, 
-    stock: 75, 
-    sellerName: 'Sayuran Organik Bu Nita',
-    imageUrl: getIngredientImageUrl('Onion') // Tambahkan imageUrl
-  },
-  { 
-    id: 'p4', 
-    name: 'Garlic', 
-    description: 'Bawang putih segar, bumbu dasar wajib.', 
-    descriptionFull: 'Bawang putih lokal segar, kaya akan manfaat kesehatan dan aroma khas yang kuat. Merupakan bumbu dasar penting di hampir semua masakan Indonesia dan internasional. Dikemas dalam kondisi terbaik.',
-    price: 8000, 
-    stock: 120, 
-    sellerName: 'Bumbu Dapur Aji',
-    imageUrl: getIngredientImageUrl('Garlic') // Tambahkan imageUrl
-  },
-  { 
-    id: 'p5', 
-    name: 'Potatoes', 
-    description: 'Kentang segar untuk sup, gorengan, atau mashed potato.', 
-    descriptionFull: 'Kentang dieng segar, tekstur padat, cocok untuk digoreng, direbus, maupun dibuat perkedel. Sumber karbohidrat yang baik dan mudah diolah.',
-    price: 18000, 
-    stock: 60, 
-    sellerName: 'Petani Kita',
-    imageUrl: getIngredientImageUrl('Potatoes') // Tambahkan imageUrl
-  },
-  { id: 'p6', name: 'Sugar', description: 'Gula pasir putih, kebutuhan dasar dapur.', descriptionFull: 'Gula pasir putih bersih dari tebu pilihan. Cocok untuk pemanis minuman, kue, dan masakan sehari-hari. Kemasan higienis dan terjamin kualitasnya.', price: 13000, stock: 80, sellerName: 'Grosir Sembako Jaya', imageUrl: getIngredientImageUrl('Sugar') },
-  { id: 'p7', name: 'Flour', description: 'Tepung terigu serbaguna, untuk kue dan roti.', descriptionFull: 'Tepung terigu serbaguna dengan kualitas terbaik, cocok untuk membuat aneka kue, roti, gorengan, dan adonan lainnya. Hasil masakan lebih lembut dan mengembang sempurna.', price: 12000, stock: 90, sellerName: 'Bahan Kue Lestari', imageUrl: getIngredientImageUrl('Flour') },
-  { id: 'p8', name: 'Salt', description: 'Garam dapur beryodium.', descriptionFull: 'Garam dapur beryodium halus, esensial untuk kesehatan tiroid. Cocok untuk bumbu masakan dan pengawetan makanan. Kemasan praktis dan mudah digunakan.', price: 3000, stock: 150, sellerName: 'Bumbu Nusantara', imageUrl: getIngredientImageUrl('Salt') },
-  { id: 'p9', name: 'Milk', description: 'Susu UHT full cream.', descriptionFull: 'Susu UHT full cream rendah lemak, kaya kalsium dan vitamin. Cocok untuk diminum langsung, campuran kopi/teh, atau bahan dasar smoothies dan puding. Tersedia dalam kemasan praktis.', price: 22000, stock: 40, sellerName: 'Minuman Sehat Kita', imageUrl: getIngredientImageUrl('Milk') },
-  { id: 'p10', name: 'Butter', description: 'Mentega tawar untuk baking atau olesan roti.', descriptionFull: 'Mentega tawar berkualitas tinggi, terbuat dari susu sapi asli. Ideal untuk baking, menumis, atau olesan roti. Memberikan aroma dan rasa gurih yang istimewa pada masakan Anda.', price: 30000, stock: 25, sellerName: 'Dunia Susu & Olahan', imageUrl: getIngredientImageUrl('Butter') },
-  { id: 'p11', name: 'Rice', description: 'Beras kualitas premium, pulen dan wangi.', descriptionFull: 'Beras putih kualitas premium, hasil panen terbaik. Nasi pulen dengan aroma wangi yang menggugah selera. Cocok untuk hidangan sehari-hari keluarga Anda.', price: 50000, stock: 70, sellerName: 'Petani Makmur', imageUrl: getIngredientImageUrl('Rice') },
-  { id: 'p12', name: 'Tomatoes', description: 'Tomat segar pilihan, kaya vitamin.', descriptionFull: 'Tomat segar pilihan, merah merona dan padat. Sumber vitamin C dan antioksidan alami. Sempurna untuk salad, saus, atau jus.', price: 9000, stock: 85, sellerName: 'Sayur Segar Bali', imageUrl: getIngredientImageUrl('Tomatoes') },
-  { id: 'p13', name: 'Cheese', description: 'Keju cheddar block, cocok untuk berbagai hidangan.', descriptionFull: 'Keju cheddar block, rasa gurih dan tekstur lembut. Mudah diparut atau diiris, cocok untuk topping pasta, burger, atau camilan langsung.', price: 28000, stock: 35, sellerName: 'Dunia Keju', imageUrl: getIngredientImageUrl('Cheese') },
-  { id: 'p14', name: 'Pasta', description: 'Pasta spaghetti, cepat saji dan lezat.', descriptionFull: 'Pasta spaghetti dari gandum durum pilihan, tekstur kenyal sempurna setelah dimasak. Cocok dipadukan dengan berbagai saus pasta kesukaan Anda.', price: 14000, stock: 95, sellerName: 'Italia Foods', imageUrl: getIngredientImageUrl('Pasta') },
-  { id: 'p15', name: 'Olive Oil', description: 'Minyak zaitun extra virgin, sehat untuk memasak.', descriptionFull: 'Minyak zaitun extra virgin dari perasan pertama buah zaitun, kaya antioksidan dan lemak tak jenuh tunggal. Ideal untuk salad dressing, menumis ringan, atau sebagai dipping sauce.', price: 60000, stock: 20, sellerName: 'Healthy Living Store', imageUrl: getIngredientImageUrl('Olive Oil') },
-  { id: 'p16', name: 'Mushrooms', description: 'Jamur kancing segar, penambah rasa umami.', descriptionFull: 'Jamur kancing segar pilihan, tekstur renyah dan rasa umami. Cocok untuk tumisan, sup, pizza, atau omelet. Sumber protein nabati yang baik.', price: 16000, stock: 55, sellerName: 'Petani Jamur Indah', imageUrl: getIngredientImageUrl('Mushrooms') },
-  { id: 'p17', name: 'Lemon', description: 'Lemon segar, sumber vitamin C dan aroma.', descriptionFull: 'Lemon segar impor, kulit cerah dan air melimpah. Sumber vitamin C alami dan memberikan aroma segar pada masakan atau minuman.', price: 7000, stock: 70, sellerName: 'Buah Tropis', imageUrl: getIngredientImageUrl('Lemon') },
-  { id: 'p18', name: 'Honey', description: 'Madu murni alami, baik untuk kesehatan.', descriptionFull: 'Madu murni alami dari nektar bunga pilihan, tanpa tambahan pengawet. Rasa manis alami dan kaya akan manfaat kesehatan. Cocok untuk pemanis alami atau campuran minuman.', price: 40000, stock: 28, sellerName: 'Madu Sehat Alami', imageUrl: getIngredientImageUrl('Honey') },
-  { id: 'p19', name: 'Spinach', description: 'Bayam segar, sayuran hijau bergizi.', descriptionFull: 'Bayam segar organik, daun hijau pekat dan renyah. Kaya zat besi dan vitamin. Sempurna untuk tumisan, sup, atau jus hijau.', price: 5000, stock: 110, sellerName: 'Kebun Ibu', imageUrl: getIngredientImageUrl('Spinach') },
-  { id: 'p20', name: 'Black Pepper', description: 'Lada hitam bubuk, bumbu penyedap masakan.', descriptionFull: 'Lada hitam bubuk murni, dengan aroma kuat dan rasa pedas yang khas. Ideal untuk membumbui daging, sayuran, atau saus. Menambah kehangatan pada setiap hidangan.', price: 10000, stock: 65, sellerName: 'Bumbu Warisan Nenek', imageUrl: getIngredientImageUrl('Black Pepper') },
-];
-
-
+// Fungsi untuk memuat detail produk dari store
 const fetchProductDetail = async (productId: string) => {
   loading.value = true;
   error.value = null;
   product.value = null;
 
   try {
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Simulasi penundaan untuk user experience
+    await new Promise(resolve => setTimeout(resolve, 300)); 
 
-    const foundProduct = allDummyProducts.find(p => p.id === productId);
+    const foundProduct = productStore.getProductById(productId); // Ambil dari store
 
     if (foundProduct) {
       product.value = foundProduct;
@@ -212,7 +141,6 @@ const validateQuantity = () => {
   }
 };
 
-// Ubah nama fungsi ini agar tidak bentrok dengan metode addToCart di store
 const addItemToCart = (product: Product, qty: number) => {
   if (product.stock === 0) {
     alert(`Maaf, produk "${product.name}" sedang kosong.`);
@@ -227,8 +155,14 @@ const addItemToCart = (product: Product, qty: number) => {
     return;
   }
 
-  // Panggil aksi addToCart dari Pinia store
-  cartStore.addToCart(product, qty);
+  // Tambahkan imageUrl ke produk saat mengirim ke cart store
+  cartStore.addToCart({ 
+    id: product.id, 
+    name: product.name, 
+    price: product.price, 
+    stock: product.stock, 
+    imageUrl: product.imageUrl 
+  }, qty);
   alert(`Produk "${product.name}" (${qty} unit) berhasil ditambahkan ke keranjang.`);
 };
 

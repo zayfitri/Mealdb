@@ -1,9 +1,10 @@
 <script setup>
-// Pastikan semua ikon yang diperlukan tetap diimpor
-import { Home, Heart, Utensils, List, ShoppingCart, User } from 'lucide-vue-next'; 
+import { Home, Heart, Utensils, List, ShoppingCart, User, LogIn, LogOut, Truck, Settings } from 'lucide-vue-next'; 
 import { useCartStore } from '@/stores/cart';
+import { useUserStore } from '@/stores/user';
 
 const cartStore = useCartStore();
+const userStore = useUserStore();
 </script>
 
 <template>
@@ -17,50 +18,77 @@ const cartStore = useCartStore();
         <span class="text-white text-2xl font-bold hidden sm:block">Meal+Shop</span> 
       </RouterLink>
 
-      <!-- Bagian kanan navbar (Link Keranjang dan Link Akun) -->
+      <!-- Bagian kanan navbar (Link Keranjang, Link Akun, dan Login/Logout) -->
       <div class="flex items-center space-x-4">
-        <!-- Link Keranjang (DISESUAIKAN POSISINYA) -->
-        <RouterLink to="/cart" class="flex items-center text-white text-sm hover:text-gray-200 relative"> 
-          <!-- Notifikasi badge di posisi kiri atas ikon, tumpang tindih -->
+        <!-- Link Keranjang (Hanya tampil untuk user atau jika belum login) -->
+        <RouterLink v-if="userStore.getLoggedInUser?.role === 'user' || !userStore.isLoggedIn" 
+                    to="/cart" class="flex items-center text-white text-sm hover:text-gray-200 relative"> 
           <span v-if="cartStore.totalItems > 0" 
                 class="absolute -top-1 -left-1 bg-red-600 text-white rounded-full text-xs px-1.5 py-0.5 
-                       flex items-center justify-center min-w-[1.25rem] h-5"> <!-- Tambahkan min-w dan h untuk memastikan bentuk bulat -->
+                       flex items-center justify-center min-w-[1.25rem] h-5">
             {{ cartStore.totalItems }}
           </span>
           <ShoppingCart class="w-6 h-6" />
           <span class="ml-1 hidden sm:block">Keranjang</span>
         </RouterLink>
 
-        <!-- Link Akun -->
-        <RouterLink to="/user-dashboard" class="flex items-center text-white text-sm hover:text-gray-200">
+        <!-- Link Akun Saya (Hanya tampil untuk user atau jika belum login) -->
+        <RouterLink v-if="userStore.getLoggedInUser?.role === 'user' || !userStore.isLoggedIn" 
+                    to="/user-dashboard" class="flex items-center text-white text-sm hover:text-gray-200">
           <User class="w-6 h-6" />
           <span class="ml-1 hidden sm:block">Akun Saya</span>
         </RouterLink>
+
+        <!-- Tombol Login/Logout -->
+        <RouterLink v-if="!userStore.isLoggedIn" to="/login" class="flex items-center text-white text-sm hover:text-gray-200">
+            <LogIn class="w-6 h-6" />
+            <span class="ml-1 hidden sm:block">Login</span>
+        </RouterLink>
+        <button v-else @click="userStore.logout()" class="flex items-center text-white text-sm hover:text-gray-200 focus:outline-none">
+            <LogOut class="w-6 h-6" />
+            <span class="ml-1 hidden sm:block">Logout ({{ userStore.getLoggedInUser?.username }})</span>
+        </button>
       </div>
     </div>
 
     <!-- Sidebar -->
     <aside class="w-16 bg-gray-800 flex flex-col items-center py-35 space-y-15 text-gray-300 fixed left-0 top-16 h-full pt-20"> 
-      <RouterLink to="/home" class="flex flex-col items-center space-y-1 text-xs hover:text-white">
-        <Home class="w-6 h-6" />
-        <span>Home</span>
+      <!-- Tautan umum untuk role 'user' atau jika belum login (untuk browsing) -->
+      <template v-if="userStore.getLoggedInUser?.role === 'user' || !userStore.isLoggedIn">
+        <RouterLink to="/home" class="flex flex-col items-center space-y-1 text-xs hover:text-white">
+          <Home class="w-6 h-6" />
+          <span>Home</span>
+        </RouterLink>
+        <RouterLink to="/favorit" class="flex flex-col items-center space-y-1 text-xs hover:text-white">
+          <Heart class="w-6 h-6" />
+          <span>Favorit</span>
+        </RouterLink>
+        <RouterLink to="/kategori" class="flex flex-col items-center space-y-1 text-xs hover:text-white">
+          <Utensils class="w-6 h-6" />
+          <span>Kategori</span>
+        </RouterLink>
+        <RouterLink to="/bahan" class="flex flex-col items-center space-y-1 text-xs hover:text-white">
+          <List class="w-6 h-6" />
+          <span>Bahan</span>
+        </RouterLink>
+        <RouterLink to="/shop" class="flex flex-col items-center space-y-1 text-xs hover:text-white">
+          <ShoppingCart class="w-6 h-6" />
+          <span>Toko</span>
+        </RouterLink>
+      </template>
+
+      <!-- Link Dashboard Kurir (hanya tampil jika user adalah courier) -->
+      <RouterLink v-if="userStore.getLoggedInUser?.role === 'courier'" to="/courier-dashboard" class="flex flex-col items-center space-y-1 text-xs hover:text-white">
+        <Truck class="w-6 h-6" /> 
+        <span>Kurir</span>
       </RouterLink>
-      <RouterLink to="/favorit" class="flex flex-col items-center space-y-1 text-xs hover:text-white">
-        <Heart class="w-6 h-6" />
-        <span>Favorit</span>
+
+      <!-- Link Dashboard Admin (hanya tampil jika user adalah admin) -->
+      <RouterLink v-if="userStore.getLoggedInUser?.role === 'admin'" to="/admin-dashboard" class="flex flex-col items-center space-y-1 text-xs hover:text-white">
+        <Settings class="w-6 h-6" /> 
+        <span>Admin</span>
       </RouterLink>
-      <RouterLink to="/kategori" class="flex flex-col items-center space-y-1 text-xs hover:text-white">
-        <Utensils class="w-6 h-6" />
-        <span>Kategori</span>
-      </RouterLink>
-      <RouterLink to="/bahan" class="flex flex-col items-center space-y-1 text-xs hover:text-white">
-        <List class="w-6 h-6" />
-        <span>Bahan</span>
-      </RouterLink>
-      <RouterLink to="/shop" class="flex flex-col items-center space-y-1 text-xs hover:text-white">
-        <ShoppingCart class="w-6 h-6" />
-        <span>Toko</span>
-      </RouterLink>
+
     </aside>
 
     <!-- Main Content -->

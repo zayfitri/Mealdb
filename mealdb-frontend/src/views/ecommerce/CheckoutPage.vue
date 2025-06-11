@@ -65,12 +65,14 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useCartStore } from '@/stores/cart';
 import { useWalletStore } from '@/stores/wallet';
-import { useOrderStore } from '@/stores/order'; // Import order store
+import { useOrderStore } from '@/stores/order';
+import { useUserStore } from '@/stores/user'; // Import user store
 
 const router = useRouter();
 const cartStore = useCartStore();
 const walletStore = useWalletStore();
-const orderStore = useOrderStore(); // Inisialisasi order store
+const orderStore = useOrderStore();
+const userStore = useUserStore(); // Inisialisasi user store
 
 const isProcessingPayment = ref(false);
 const paymentError = ref<string | null>(null);
@@ -80,6 +82,14 @@ const processPayment = async () => {
   if (cartStore.items.length === 0) {
     alert('Keranjang Anda kosong. Tidak ada yang perlu dibayar.');
     router.push('/shop');
+    return;
+  }
+
+  // Pastikan ada user yang login (simulasi)
+  const currentUserId = userStore.getLoggedInUser?.id;
+  if (!currentUserId) {
+    alert('Anda harus login untuk melakukan pembayaran.');
+    router.push('/login'); // Arahkan ke halaman login (akan dibuat nanti)
     return;
   }
 
@@ -97,12 +107,12 @@ const processPayment = async () => {
       console.log('Pembayaran berhasil!');
       alert('Pembayaran berhasil! Pesanan Anda sedang diproses.');
       
-      // --- Tambahkan pesanan ke order store ---
-      orderStore.addOrder(cartStore.items, totalAmount, 'dummy-user-id'); // 'dummy-user-id' akan diganti
-      // --- End: Tambahkan pesanan ---
-
-      cartStore.clearCart();
-      router.push('/user-dashboard'); // Arahkan ke dashboard pengguna
+      // Tambahkan pesanan ke order store dengan ID pengguna yang sebenarnya
+      orderStore.addOrder(cartStore.items, totalAmount, currentUserId); 
+      
+      cartStore.clearCartOnCheckout(); 
+      
+      router.push('/user-dashboard'); 
     } else {
       paymentError.value = 'Saldo uang elektronik tidak cukup. Silakan top-up saldo Anda.';
       alert(paymentError.value);
@@ -117,6 +127,7 @@ const processPayment = async () => {
 };
 
 onMounted(() => {
+  // Jika keranjang kosong DAN user belum login (nantinya), bisa redirect ke login
   if (cartStore.items.length === 0) {
     router.replace('/shop');
   }
