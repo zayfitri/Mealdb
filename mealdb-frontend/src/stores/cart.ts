@@ -1,5 +1,8 @@
 // src/stores/cart.ts
 import { defineStore } from 'pinia';
+import { useProductStore } from './product'; // Pastikan ini adalah satu-satunya import lain selain Pinia
+
+// TIDAK BOLEH ADA: import { CartItem } from './cart'; di sini
 
 // Definisikan tipe untuk item di keranjang
 // Pastikan ada 'export' di sini!
@@ -8,42 +11,43 @@ export interface CartItem {
   name: string;
   price: number;
   quantity: number;
-  stock: number; // Simpan stok maksimal produk
+  stock: number; // Simpan stok maksimal produk (ini adalah stok awal produk saat ditambahkan ke keranjang)
   imageUrl: string;
 }
 
 export const useCartStore = defineStore('cart', {
   state: () => ({
-    items: [] as CartItem[], // Array untuk menyimpan item di keranjang
+    items: [] as CartItem[],
   }),
   getters: {
-    // Getter untuk menghitung total jenis item di keranjang (produk unik)
     totalItems(state): number {
-      return state.items.length; // Mengembalikan jumlah elemen di array, yaitu jumlah produk unik
+      return state.items.length;
     },
-    // Getter untuk menghitung subtotal harga
     subtotal(state): number {
       return state.items.reduce((total, item) => total + (item.price * item.quantity), 0);
     },
   },
   actions: {
-    // Aksi untuk menambahkan produk ke keranjang
     addToCart(product: { id: string; name: string; price: number; stock: number; imageUrl: string }, quantity: number = 1) {
+      const productStore = useProductStore();
+
       const existingItem = this.items.find(item => item.productId === product.id);
 
+      const currentProductInStore = productStore.getProductById(product.id);
+      if (!currentProductInStore || currentProductInStore.stock < quantity) {
+        alert(`Maaf, stok ${product.name} tidak cukup. Tersedia: ${currentProductInStore ? currentProductInStore.stock : 0} unit.`);
+        return;
+      }
+
       if (existingItem) {
-        // Jika produk sudah ada di keranjang, perbarui kuantitas
-        const newQuantity = existingItem.quantity + quantity;
-        if (newQuantity <= product.stock) {
-          existingItem.quantity = newQuantity;
+        if (productStore.deductProductStock(product.id, quantity)) {
+          existingItem.quantity += quantity;
+          alert(`"${product.name}" kuantitasnya berhasil diperbarui di keranjang.`);
         } else {
-          // Jika melebihi stok, set ke stok maksimal
-          existingItem.quantity = product.stock;
-          alert(`Maaf, stok ${product.name} hanya tersedia ${product.stock} unit. Kuantitas disesuaikan.`);
+           alert(`Maaf, stok ${product.name} tidak cukup untuk menambahkan ${quantity} unit lagi.`);
         }
       } else {
-        // Jika produk belum ada di keranjang, tambahkan sebagai item baru
-        if (quantity <= product.stock) {
+        if (productStore.deductProductStock(product.id, quantity)) {
           this.items.push({
             productId: product.id,
             name: product.name,
@@ -52,42 +56,66 @@ export const useCartStore = defineStore('cart', {
             stock: product.stock,
             imageUrl: product.imageUrl,
           });
+          alert(`"${product.name}" berhasil ditambahkan ke keranjang.`);
         } else {
-           alert(`Maaf, stok ${product.name} hanya tersedia ${product.stock} unit. Tidak dapat menambahkan kuantitas sebanyak itu.`);
+          alert(`Maaf, stok ${product.name} tidak cukup.`);
         }
       }
-      this.saveCart(); // Simpan keranjang ke localStorage
+      this.saveCart();
     },
 
-    // Aksi untuk memperbarui kuantitas item di keranjang
     updateQuantity(productId: string, newQuantity: number) {
+      const productStore = useProductStore();
       const item = this.items.find(item => item.productId === productId);
+      
       if (item) {
-        if (newQuantity > 0 && newQuantity <= item.stock) {
+        const oldQuantity = item.quantity;
+        const quantityDifference = newQuantity - oldQuantity;
+        
+        if (quantityDifference > 0) {
+          const currentProductInStore = productStore.getProductById(productId);
+          if (!currentProductInStore || currentProductInStore.stock < quantityDifference) {
+            alert(`Maaf, stok ${item.name} tidak cukup untuk menambahkan ${quantityDifference} unit lagi. Tersedia: ${currentProductInStore ? currentProductInStore.stock : 0}.`);
+            return;
+          }
+          if (productStore.deductProductStock(productId, quantityDifference)) {
+            item.quantity = newQuantity;
+          }
+        } else if (quantityDifference < 0) {
+          productStore.addProductStock(productId, Math.abs(quantityDifference));
           item.quantity = newQuantity;
-        } else if (newQuantity <= 0) {
-          this.removeFromCart(productId); // Hapus jika kuantitas <= 0
-        } else {
-          item.quantity = item.stock; // Set ke stok maksimal jika melebihi
-          alert(`Maaf, stok ${item.name} hanya tersedia ${item.stock} unit. Kuantitas disesuaikan.`);
+        } else if (newQuantity === 0) {
+          this.removeFromCart(productId);
         }
       }
-      this.saveCart(); // Simpan keranjang ke localStorage
+      this.saveCart();
     },
 
-    // Aksi untuk menghapus item dari keranjang
     removeFromCart(productId: string) {
+      const productStore = useProductStore();
+      const itemToRemove = this.items.find(item => item.productId === productId);
+
+      if (itemToRemove) {
+        productStore.addProductStock(productId, itemToRemove.quantity);
+      }
       this.items = this.items.filter(item => item.productId !== productId);
-      this.saveCart(); // Simpan keranjang ke localStorage
+      this.saveCart();
     },
 
-    // Aksi untuk membersihkan seluruh keranjang
     clearCart() {
+      const productStore = useProductStore();
+      this.items.forEach(item => {
+        productStore.addProductStock(item.productId, item.quantity);
+      });
       this.items = [];
-      this.saveCart(); // Simpan keranjang ke localStorage
+      this.saveCart();
     },
 
-    // Aksi untuk memuat keranjang dari localStorage saat aplikasi dimulai
+    clearCartOnCheckout() {
+      this.items = [];
+      this.saveCart();
+    },
+
     loadCart() {
       const savedCart = localStorage.getItem('cartItems');
       if (savedCart) {
@@ -95,7 +123,6 @@ export const useCartStore = defineStore('cart', {
       }
     },
 
-    // Aksi untuk menyimpan keranjang ke localStorage
     saveCart() {
       localStorage.setItem('cartItems', JSON.stringify(this.items));
     }
